@@ -1,4 +1,6 @@
 
+SUBDIRS = include lib src
+
 aclocaldir = $(datadir)/aclocal
 
 aclocal_DATA = sbc.m4
@@ -13,4 +15,4 @@ DISTCLEANFILES = $(pkgconfig_DATA)
 
 MAINTAINERCLEANFILES = Makefile.in \
 	aclocal.m4 configure config.h.in config.sub config.guess \
-	ltmain.sh missing install-sh mkinstalldirs
+	ltmain.sh depcomp missing install-sh mkinstalldirs

@@ -28,4 +28,4 @@ m4_ifdef([AC_LIBTOOL_TAGS], [AC_LIBTOOL_TAGS([])])
 
 AC_PROG_LIBTOOL
 
-AC_OUTPUT(Makefile sbc.pc)
+AC_OUTPUT(Makefile include/Makefile lib/Makefile src/Makefile sbc.pc)
