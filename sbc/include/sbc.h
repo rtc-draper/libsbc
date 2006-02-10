@@ -4,6 +4,7 @@
  *
  *  Copyright (C) 2004-2006  Marcel Holtmann <marcel@holtmann.org>
  *  Copyright (C) 2004-2005  Henryk Ploetz <henryk@ploetzli.ch>
+ *  Copyright (C) 2005-2006  Brad Midgley <bmidgley@xmission.com>
  *
  *
  *  This library is free software; you can redistribute it and/or
@@ -28,6 +29,32 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+struct sbc_struct {
+	unsigned long flags;
+
+	int rate;
+	int channels;
+	int joint;
+	int blocks;
+	int subbands;
+	int bitpool;
+
+	void *data;
+	int size;
+	int len;
+
+	unsigned long duration;
+
+	void *priv;
+};
+
+typedef struct sbc_struct sbc_t;
+
+int sbc_init(sbc_t *sbc, unsigned long flags);
+int sbc_decode(sbc_t *sbc, void *data, int count);
+int sbc_encode(sbc_t *sbc, void *data, int count);
+void sbc_finish(sbc_t *sbc);
 
 #ifdef __cplusplus
 }
