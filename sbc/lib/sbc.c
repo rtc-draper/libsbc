@@ -2,8 +2,8 @@
  *
  *  Bluetooth low-complexity, subband codec (SBC) library
  *
- *  Copyright (C) 2004  Marcel Holtmann <marcel@holtmann.org>
- *  Copyright (C) 2004  Henryk Ploetz <henryk@ploetzli.ch>
+ *  Copyright (C) 2004-2006  Marcel Holtmann <marcel@holtmann.org>
+ *  Copyright (C) 2004-2005  Henryk Ploetz <henryk@ploetzli.ch>
  *
  *
  *  This library is free software; you can redistribute it and/or
@@ -18,7 +18,7 @@
  *
  *  You should have received a copy of the GNU Lesser General Public
  *  License along with this library; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
 
