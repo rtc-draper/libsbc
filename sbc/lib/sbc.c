@@ -6,6 +6,7 @@
  *  Copyright (C) 2004-2005  Henryk Ploetz <henryk@ploetzli.ch>
  *  Copyright (C) 2005-2006  Brad Midgley <bmidgley@xmission.com>
  *
+ *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
  *  License as published by the Free Software Foundation; either
@@ -34,11 +35,12 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
-#include "sbc.h"
 #include "sbc_math.h"
 #include "sbc_tables.h"
 
-#define SBC_SYNCWORD 0x9C
+#include "sbc.h"
+
+#define SBC_SYNCWORD	0x9C
 
 /* sampling frequency */
 #define SBC_FS_16	0x00
