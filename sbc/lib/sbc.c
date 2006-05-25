@@ -23,6 +23,17 @@
  *
  */
 
+/* todo items:
+
+  find the overflow that occasionally generates a "pop" for loud input
+  improve the scaling in the encoder so it doesn't lower resulting volume so much
+
+  rework encoder to avoid moving values around (follow model from decoder)
+  use a log2 table for byte integer scale factors calculation (sum log2 results for high and low bytes)
+  fill bitpool by 16 bits instead of one at a time in bits allocation/bitpool generation
+
+*/
+
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
