@@ -812,14 +812,14 @@ static inline void _sbc_analyze_eight(const int32_t in[80], int32_t out[8])
 	MULA(res, _sbc_proto_8[3], in[20]);
 	MULA(res, _sbc_proto_8[4], in[36]);
 	MULA(res, _sbc_proto_8[5], in[52]);
-	t[1] = SCALE8_STAGE1(res);
+	t[0] = SCALE8_STAGE1(res);
 
 	MUL(res, _sbc_proto_8[6], in[2]);
 	MULA(res, _sbc_proto_8[7], in[18]);
 	MULA(res, _sbc_proto_8[8], in[34]);
 	MULA(res, _sbc_proto_8[9], in[50]);
 	MULA(res, _sbc_proto_8[10], in[66]);
-	t[2] = SCALE8_STAGE1(res);
+	t[1] = SCALE8_STAGE1(res);
 
 	MUL(res, _sbc_proto_8[11], in[1]);
 	MULA(res, _sbc_proto_8[12], in[17]);
@@ -831,7 +831,7 @@ static inline void _sbc_analyze_eight(const int32_t in[80], int32_t out[8])
 	MULA(res, _sbc_proto_8[18], in[35]);
 	MULA(res, _sbc_proto_8[19], in[51]);
 	MULA(res, _sbc_proto_8[20], in[67]);
-	t[3] = SCALE8_STAGE1(res);
+	t[2] = SCALE8_STAGE1(res);
 
 	MUL(res, _sbc_proto_8[21], in[5]);
 	MULA(res, _sbc_proto_8[22], in[21]);
@@ -843,7 +843,7 @@ static inline void _sbc_analyze_eight(const int32_t in[80], int32_t out[8])
 	MULA(res, -_sbc_proto_8[13], in[47]);
 	MULA(res, -_sbc_proto_8[12], in[63]);
 	MULA(res, -_sbc_proto_8[11], in[79]);
-	t[4] = SCALE8_STAGE1(res);
+	t[3] = SCALE8_STAGE1(res);
 
 	MUL(res, _sbc_proto_8[26], in[6]);
 	MULA(res, _sbc_proto_8[27], in[22]);
@@ -855,7 +855,7 @@ static inline void _sbc_analyze_eight(const int32_t in[80], int32_t out[8])
 	MULA(res, -_sbc_proto_8[8], in[46]);
 	MULA(res, -_sbc_proto_8[7], in[62]);
 	MULA(res, -_sbc_proto_8[6], in[78]);
-	t[5] = SCALE8_STAGE1(res);
+	t[4] = SCALE8_STAGE1(res);
 
 	MUL(res, _sbc_proto_8[31], in[7]);
 	MULA(res, _sbc_proto_8[32], in[23]);
@@ -867,7 +867,7 @@ static inline void _sbc_analyze_eight(const int32_t in[80], int32_t out[8])
 	MULA(res, -_sbc_proto_8[18], in[45]);
 	MULA(res, -_sbc_proto_8[17], in[61]);
 	MULA(res, -_sbc_proto_8[16], in[77]);
-	t[6] = SCALE8_STAGE1(res);
+	t[5] = SCALE8_STAGE1(res);
 
 	MUL(res, _sbc_proto_8[36], (in[8] + in[72]));
 	MULA(res, _sbc_proto_8[37], in[24]);
@@ -878,7 +878,7 @@ static inline void _sbc_analyze_eight(const int32_t in[80], int32_t out[8])
 	MULA(res, -_sbc_proto_8[4], in[44]);
 	MULA(res, -_sbc_proto_8[3], in[60]);
 	MULA(res, -_sbc_proto_8[2], in[76]);
-	t[7] = SCALE8_STAGE1(res);
+	t[6] = SCALE8_STAGE1(res);
 
 	MUL(res, _sbc_proto_8[35], in[9]);
 	MULA(res, _sbc_proto_8[34], in[25]);
@@ -890,7 +890,7 @@ static inline void _sbc_analyze_eight(const int32_t in[80], int32_t out[8])
 	MULA(res, -_sbc_proto_8[23], in[43]);
 	MULA(res, -_sbc_proto_8[22], in[59]);
 	MULA(res, -_sbc_proto_8[21], in[75]);
-	t[8] = SCALE8_STAGE1(res);
+	t[7] = SCALE8_STAGE1(res);
 
 	MUL(res, _anamatrix8[0], t[1]);
 	MULA(res, _anamatrix8[7], t[2]);
