@@ -46,6 +46,10 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
+
+///////////////////////
+#include <math.h>
+/////////////////////////
 #include "sbc_math.h"
 #include "sbc_tables.h"
 
@@ -538,22 +542,28 @@ static int sbc_unpack_frame(const uint8_t * data, struct sbc_frame *frame, size_
 		}
 	}
 
+	// TODO
 	for (blk = 0; blk < frame->blocks; blk++) {
 		for (ch = 0; ch < frame->channels; ch++) {
 			for (sb = 0; sb < frame->subbands; sb++) {
 				if (levels[ch][sb] > 0) {
 					frame->sb_sample[blk][ch][sb] = 
-						(((frame->audio_sample[blk][ch][sb] << 16) | 0x8000) / levels[ch][sb]) - 0x8000;
-					if(frame->scale_factor[ch][sb] >= SCALE_SAMPLES)
-						frame->sb_sample[blk][ch][sb] <<= frame->scale_factor[ch][sb] - SCALE_SAMPLES;
-					else
-						frame->sb_sample[blk][ch][sb] >>= SCALE_SAMPLES - frame->scale_factor[ch][sb];
+						(((frame->audio_sample[blk][ch][sb] << 16) | 0x8000) / levels[ch][sb]) - 0x8000; // Q15
+
+					frame->sb_sample[blk][ch][sb] >>= 3; // Q12
+					frame->sb_sample[blk][ch][sb] = (frame->sb_sample[blk][ch][sb] << (frame->scale_factor[ch][sb] + 1)); // Q13 ?! MM
+
+//					if(frame->scale_factor[ch][sb] >= SCALE_SAMPLES)
+//						frame->sb_sample[blk][ch][sb] <<= frame->scale_factor[ch][sb] - SCALE_SAMPLES;
+//					else
+//						frame->sb_sample[blk][ch][sb] >>= SCALE_SAMPLES - frame->scale_factor[ch][sb];
 				} else {
 					frame->sb_sample[blk][ch][sb] = 0;
 				}
 			}
 		}
 	}
+
 	if (frame->channel_mode == JOINT_STEREO) {
 		for (blk = 0; blk < frame->blocks; blk++) {
 			for (sb = 0; sb < frame->subbands; sb++) {
@@ -569,6 +579,7 @@ static int sbc_unpack_frame(const uint8_t * data, struct sbc_frame *frame, size_
 	if ((consumed & 0x7) != 0)
 		consumed += 8 - (consumed & 0x7);
 
+	
 	return consumed >> 3;
 }
 
@@ -588,7 +599,7 @@ static inline void sbc_synthesize_four(struct sbc_decoder_state *state,
 				struct sbc_frame *frame, int ch, int blk)
 {
 	int i, j, k, idx;
-	sbc_fixed_t res;
+	sbc_extended_t res;
 
 	for(i = 0; i < 8; i++) {
 		/* Shifting */
@@ -600,6 +611,7 @@ static inline void sbc_synthesize_four(struct sbc_decoder_state *state,
 			}
 		}
 	}
+	
 
 	for(i = 0; i < 8; i++) {
 		/* Distribute the new matrix value to the shifted position */
@@ -607,7 +619,8 @@ static inline void sbc_synthesize_four(struct sbc_decoder_state *state,
 		for (j = 0; j < 4; j++) {
 			MULA(res, synmatrix4[i][j], frame->sb_sample[blk][ch][j]);
 		}
-		state->V[ch][state->offset[ch][i]] = SCALE4_STAGED1(res);
+		state->V[ch][state->offset[ch][i]] = res >> 18;
+//		state->V[ch][state->offset[ch][i]] = SCALE4_STAGED1(res);
 	}
 
 	/* Compute the samples */
@@ -619,7 +632,8 @@ static inline void sbc_synthesize_four(struct sbc_decoder_state *state,
 			MULA(res, state->V[ch][state->offset[ch][k]+j++], sbc_proto_4_40m1[idx]);
 		}
 		/* Store in output */
-		frame->pcm_sample[ch][blk * 4 + i] = SCALE4_STAGED2(res);
+		frame->pcm_sample[ch][blk * 4 + i] = res >> 23;
+//		frame->pcm_sample[ch][blk * 4 + i] = SCALE4_STAGED2(res);
 	}
 }
 
@@ -627,7 +641,7 @@ static inline void sbc_synthesize_eight(struct sbc_decoder_state *state,
 				struct sbc_frame *frame, int ch, int blk)
 {
 	int i, j, k, idx;
-	sbc_fixed_t res;
+	sbc_extended_t res;
 
 	for(i = 0; i < 16; i++) {
 		/* Shifting */
@@ -635,7 +649,7 @@ static inline void sbc_synthesize_eight(struct sbc_decoder_state *state,
 		if(state->offset[ch][i] < 0) {
 			state->offset[ch][i] = 159;
 			for(j = 0; j < 9; j++) {
-				state->V[ch][j+160] = state->V[ch][j];
+				state->V[ch][j+160] = state->V[ch][j]; 
 			}
 		}
 	}
@@ -644,10 +658,12 @@ static inline void sbc_synthesize_eight(struct sbc_decoder_state *state,
 		/* Distribute the new matrix value to the shifted position */
 		SBC_FIXED_0(res);
 		for (j = 0; j < 8; j++) {
-			MULA(res, synmatrix8[i][j], frame->sb_sample[blk][ch][j]);
+			MULA(res, synmatrix8[i][j], frame->sb_sample[blk][ch][j]); // Q28 = Q15 * Q13
 		}
-		state->V[ch][state->offset[ch][i]] = SCALE8_STAGED1(res);
+		state->V[ch][state->offset[ch][i]] = res >> 18; // Q10
+//		state->V[ch][state->offset[ch][i]] = SCALE8_STAGED1(res); // Q10
 	}
+	
 
 	/* Compute the samples */
 	for(idx = 0, i = 0; i < 8; i++) {
@@ -658,14 +674,16 @@ static inline void sbc_synthesize_eight(struct sbc_decoder_state *state,
 			MULA(res, state->V[ch][state->offset[ch][k]+j++], sbc_proto_8_80m1[idx]);
 		}
 		/* Store in output */
-		frame->pcm_sample[ch][blk * 8 + i] = SCALE8_STAGED2(res);
+		frame->pcm_sample[ch][blk * 8 + i] = res >> 23;
+//		frame->pcm_sample[ch][blk * 8 + i] = SCALE8_STAGED2(res);
+
 	}
 }
 
 static int sbc_synthesize_audio(struct sbc_decoder_state *state, struct sbc_frame *frame)
 {
 	int ch, blk;
-
+	
 	switch (frame->subbands) {
 	case 4:
 		for (ch = 0; ch < frame->channels; ch++) {
@@ -692,8 +710,11 @@ static void sbc_encoder_init(struct sbc_encoder_state *state, const struct sbc_f
 	state->subbands = frame->subbands;
 }
 
-static inline void _sbc_analyze_four(const int32_t in[40], int32_t out[4])
+static inline void _sbc_analyze_four(const int32_t *in, int32_t *out)
 {
+
+
+
 	sbc_fixed_t res;
 	int32_t t[8];
 
@@ -799,29 +820,32 @@ static inline void sbc_analyze_four(struct sbc_encoder_state *state,
 	_sbc_analyze_four(state->X[ch], frame->sb_sample_f[blk][ch]);
 }
 
-static inline void _sbc_analyze_eight(const int32_t in[80], int32_t out[8])
+static inline void _sbc_analyze_eight(const int32_t *in, int32_t *out)
 {
-	sbc_fixed_t res;
+//	sbc_fixed_t res;
+	sbc_extended_t res;
 	int32_t t[8];
 
 	out[0] = out[1] = out[2] = out[3] = out[4] = out[5] = out[6] = out[7] = 0;
 	
-	MUL(res, _sbc_proto_8[0], (in[16] - in[64]));
+	MUL(res,  _sbc_proto_8[0], (in[16] - in[64])); // Q18 = Q18 * Q0
 	MULA(res, _sbc_proto_8[1], (in[32] - in[48]));
 	MULA(res, _sbc_proto_8[2], in[4]);
 	MULA(res, _sbc_proto_8[3], in[20]);
 	MULA(res, _sbc_proto_8[4], in[36]);
 	MULA(res, _sbc_proto_8[5], in[52]);
-	t[0] = SCALE8_STAGE1(res);
+//	t[0] = SCALE8_STAGE1(res); // Q3
+	t[0] = res >> 16; // Q2
 
-	MUL(res, _sbc_proto_8[6], in[2]);
-	MULA(res, _sbc_proto_8[7], in[18]);
-	MULA(res, _sbc_proto_8[8], in[34]);
-	MULA(res, _sbc_proto_8[9], in[50]);
+	MUL(res,   _sbc_proto_8[6], in[2]);
+	MULA(res,  _sbc_proto_8[7], in[18]);
+	MULA(res,  _sbc_proto_8[8], in[34]);
+	MULA(res,  _sbc_proto_8[9], in[50]);
 	MULA(res, _sbc_proto_8[10], in[66]);
-	t[1] = SCALE8_STAGE1(res);
+//	t[1] = SCALE8_STAGE1(res);
+	t[1] = res >> 16; // Q2
 
-	MUL(res, _sbc_proto_8[11], in[1]);
+	MUL(res,  _sbc_proto_8[11], in[1]);
 	MULA(res, _sbc_proto_8[12], in[17]);
 	MULA(res, _sbc_proto_8[13], in[33]);
 	MULA(res, _sbc_proto_8[14], in[49]);
@@ -831,66 +855,72 @@ static inline void _sbc_analyze_eight(const int32_t in[80], int32_t out[8])
 	MULA(res, _sbc_proto_8[18], in[35]);
 	MULA(res, _sbc_proto_8[19], in[51]);
 	MULA(res, _sbc_proto_8[20], in[67]);
-	t[2] = SCALE8_STAGE1(res);
+//	t[2] = SCALE8_STAGE1(res);
+	t[2] = res >> 16; // Q2
 
-	MUL(res, _sbc_proto_8[21], in[5]);
-	MULA(res, _sbc_proto_8[22], in[21]);
-	MULA(res, _sbc_proto_8[23], in[37]);
-	MULA(res, _sbc_proto_8[24], in[53]);
-	MULA(res, _sbc_proto_8[25], in[69]);
+	MUL(res,   _sbc_proto_8[21], in[5]);
+	MULA(res,  _sbc_proto_8[22], in[21]);
+	MULA(res,  _sbc_proto_8[23], in[37]);
+	MULA(res,  _sbc_proto_8[24], in[53]);
+	MULA(res,  _sbc_proto_8[25], in[69]);
 	MULA(res, -_sbc_proto_8[15], in[15]);
 	MULA(res, -_sbc_proto_8[14], in[31]);
 	MULA(res, -_sbc_proto_8[13], in[47]);
 	MULA(res, -_sbc_proto_8[12], in[63]);
 	MULA(res, -_sbc_proto_8[11], in[79]);
-	t[3] = SCALE8_STAGE1(res);
+//	t[3] = SCALE8_STAGE1(res);
+	t[3] = res >> 16; // Q2
 
-	MUL(res, _sbc_proto_8[26], in[6]);
-	MULA(res, _sbc_proto_8[27], in[22]);
-	MULA(res, _sbc_proto_8[28], in[38]);
-	MULA(res, _sbc_proto_8[29], in[54]);
-	MULA(res, _sbc_proto_8[30], in[70]);
+	MUL(res,   _sbc_proto_8[26], in[6]);
+	MULA(res,  _sbc_proto_8[27], in[22]);
+	MULA(res,  _sbc_proto_8[28], in[38]);
+	MULA(res,  _sbc_proto_8[29], in[54]);
+	MULA(res,  _sbc_proto_8[30], in[70]);
 	MULA(res, -_sbc_proto_8[10], in[14]);
-	MULA(res, -_sbc_proto_8[9], in[30]);
-	MULA(res, -_sbc_proto_8[8], in[46]);
-	MULA(res, -_sbc_proto_8[7], in[62]);
-	MULA(res, -_sbc_proto_8[6], in[78]);
-	t[4] = SCALE8_STAGE1(res);
+	MULA(res,  -_sbc_proto_8[9], in[30]);
+	MULA(res,  -_sbc_proto_8[8], in[46]);
+	MULA(res,  -_sbc_proto_8[7], in[62]);
+	MULA(res,  -_sbc_proto_8[6], in[78]);
+//	t[4] = SCALE8_STAGE1(res);
+	t[4] = res >> 16; // Q2
 
-	MUL(res, _sbc_proto_8[31], in[7]);
-	MULA(res, _sbc_proto_8[32], in[23]);
-	MULA(res, _sbc_proto_8[33], in[39]);
-	MULA(res, _sbc_proto_8[34], in[55]);
-	MULA(res, _sbc_proto_8[35], in[71]);
+	MUL(res,   _sbc_proto_8[31], in[7]);
+	MULA(res,  _sbc_proto_8[32], in[23]);
+	MULA(res,  _sbc_proto_8[33], in[39]);
+	MULA(res,  _sbc_proto_8[34], in[55]);
+	MULA(res,  _sbc_proto_8[35], in[71]);
 	MULA(res, -_sbc_proto_8[20], in[13]);
 	MULA(res, -_sbc_proto_8[19], in[29]);
 	MULA(res, -_sbc_proto_8[18], in[45]);
 	MULA(res, -_sbc_proto_8[17], in[61]);
 	MULA(res, -_sbc_proto_8[16], in[77]);
-	t[5] = SCALE8_STAGE1(res);
+//	t[5] = SCALE8_STAGE1(res);
+	t[5] = res >> 16; // Q2
 
-	MUL(res, _sbc_proto_8[36], (in[8] + in[72]));
-	MULA(res, _sbc_proto_8[37], in[24]);
-	MULA(res, _sbc_proto_8[38], in[40]);
-	MULA(res, _sbc_proto_8[37], in[56]);
+	MUL(res,   _sbc_proto_8[36], (in[8] + in[72]));
+	MULA(res,  _sbc_proto_8[37], in[24]);
+	MULA(res,  _sbc_proto_8[38], in[40]);
+	MULA(res,  _sbc_proto_8[37], in[56]);
 	MULA(res, -_sbc_proto_8[39], in[12]);
-	MULA(res, -_sbc_proto_8[5], in[28]);
-	MULA(res, -_sbc_proto_8[4], in[44]);
-	MULA(res, -_sbc_proto_8[3], in[60]);
-	MULA(res, -_sbc_proto_8[2], in[76]);
-	t[6] = SCALE8_STAGE1(res);
+	MULA(res,  -_sbc_proto_8[5], in[28]);
+	MULA(res,  -_sbc_proto_8[4], in[44]);
+	MULA(res,  -_sbc_proto_8[3], in[60]);
+	MULA(res,  -_sbc_proto_8[2], in[76]);
+//	t[6] = SCALE8_STAGE1(res);
+	t[6] = res >> 16; // Q2
 
-	MUL(res, _sbc_proto_8[35], in[9]);
-	MULA(res, _sbc_proto_8[34], in[25]);
-	MULA(res, _sbc_proto_8[33], in[41]);
-	MULA(res, _sbc_proto_8[32], in[57]);
-	MULA(res, _sbc_proto_8[31], in[73]);
+	MUL(res,   _sbc_proto_8[35], in[9]);
+	MULA(res,  _sbc_proto_8[34], in[25]);
+	MULA(res,  _sbc_proto_8[33], in[41]);
+	MULA(res,  _sbc_proto_8[32], in[57]);
+	MULA(res,  _sbc_proto_8[31], in[73]);
 	MULA(res, -_sbc_proto_8[25], in[11]);
 	MULA(res, -_sbc_proto_8[24], in[27]);
 	MULA(res, -_sbc_proto_8[23], in[43]);
 	MULA(res, -_sbc_proto_8[22], in[59]);
 	MULA(res, -_sbc_proto_8[21], in[75]);
-	t[7] = SCALE8_STAGE1(res);
+//	t[7] = SCALE8_STAGE1(res);
+	t[7] = res >> 16; // Q2
 
 	MUL(res, _anamatrix8[0], t[0]);
 	MULA(res, _anamatrix8[7], t[1]);
@@ -1299,6 +1329,7 @@ int sbc_decode(sbc_t *sbc, void *data, int count)
 	priv = sbc->priv;
 
 	framelen = sbc_unpack_frame(data, &priv->frame, count);
+	
 
 	if (!priv->init) {
 		sbc_decoder_init(&priv->dec_state, &priv->frame);

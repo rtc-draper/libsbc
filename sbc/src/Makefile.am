@@ -1,4 +1,4 @@
 
-bin_PROGRAMS = sbcinfo
+bin_PROGRAMS = sbcinfo 
 
 MAINTAINERCLEANFILES = Makefile.in
